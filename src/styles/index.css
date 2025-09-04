@@ -1,0 +1,46 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --tile-green: #16a34a;
+  --tile-yellow: #ca8a04;
+  --tile-red: #dc2626;
+  --tile-blue: #2563eb;
+}
+
+.card {
+  @apply rounded-2xl shadow-sm border border-gray-200 bg-white;
+}
+
+.card-header {
+  @apply px-5 pt-5 pb-2 text-sm text-gray-500;
+}
+
+.card-body {
+  @apply px-5 pb-5;
+}
+
+.tile {
+  @apply card p-5;
+}
+
+.dot-green { background: var(--tile-green); }
+.dot-yellow { background: var(--tile-yellow); }
+.dot-red { background: var(--tile-red); }
+
+.badge { @apply text-xs px-2 py-1 rounded-full border; }
+
+/* Alert balloons */
+.balloon {
+  @apply relative rounded-xl border border-gray-200 bg-amber-50 text-amber-900 p-3 text-sm;
+}
+.balloon::after {
+  content: "";
+  position: absolute; left: 16px; bottom: -8px;
+  border-width: 8px 8px 0 8px;
+  border-style: solid;
+  border-color: #fef3c7 transparent transparent transparent;
+  display: block; width: 0;
+}
