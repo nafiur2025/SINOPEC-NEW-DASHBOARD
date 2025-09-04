@@ -24,7 +24,7 @@ export default function Dashboard() {
     // Persist to Supabase if env keys are present
     if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
       if (ads.length) {
-        await supabase.from('daily_ads').insert(ads.map(a => ({
+        await supabase.from('daily_ads').upsert(ads.map(a => ({
           report_date: a.report_date,
           campaign_name: a.campaign_name,
           adset_name: a.adset_name,
@@ -43,10 +43,10 @@ export default function Dashboard() {
           spend_bdt: a.spend_bdt,
           cpm_bdt: a.cpm_bdt,
           cpc_bdt: a.cpc_bdt
-        })).select())
+        })), { onConflict: 'report_date,level,campaign_name,adset_name,ad_name' }).select())
       }
       if (orders.length) {
-        await supabase.from('daily_orders').insert(orders.map(o => ({
+        await supabase.from('daily_orders').upsert(orders.map(o => ({
           order_date: o.order_date,
           invoice_number: o.invoice_number,
           order_status: o.order_status,
@@ -55,7 +55,7 @@ export default function Dashboard() {
           total_price: o.total_price,
           delivery_area: o.delivery_area,
           classification: o.classification
-        })).select())
+        })), { onConflict: 'report_date,level,campaign_name,adset_name,ad_name' }).select())
       }
     }
   }

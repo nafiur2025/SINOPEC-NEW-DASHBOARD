@@ -23,8 +23,8 @@ create table if not exists daily_ads (
 );
 create index if not exists idx_daily_ads_report_date on daily_ads(report_date);
 create index if not exists idx_daily_ads_level on daily_ads(level);
-
-create table if not exists daily_orders (
+  create unique index if not exists ux_daily_ads_unique on daily_ads(report_date, level, campaign_name, adset_name, ad_name);
+  create table if not exists daily_orders (
   id bigserial primary key,
   order_date date not null,
   invoice_number text,
@@ -37,8 +37,8 @@ create table if not exists daily_orders (
   created_at timestamp with time zone default now()
 );
 create index if not exists idx_daily_orders_order_date on daily_orders(order_date);
-
-create or replace view v_daily_rollup as
+  create unique index if not exists ux_daily_orders_unique on daily_orders(order_date, invoice_number);
+  create or replace view v_daily_rollup as
 select
   d::date as day,
   coalesce(sum(o.paid_amount + o.due_amount),0) as revenue_bdt,
