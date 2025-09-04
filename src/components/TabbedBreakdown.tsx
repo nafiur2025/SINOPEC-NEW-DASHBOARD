@@ -51,7 +51,7 @@ export default function TabbedBreakdown({ ads }: Props) {
               </tr>
             </thead>
             <tbody>
-              {Array.from(groups.entries()).map(([name, rows]) => (
+              {Array.from(groups.entries()).flatMap(([name, rows]) => (
                 rows.sort((a,b)=>a.report_date.localeCompare(b.report_date)).map((r,i)=> (
                   <tr key={name + i} className="border-t">
                     <td className="p-2">{name}</td>

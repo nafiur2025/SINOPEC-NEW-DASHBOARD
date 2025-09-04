@@ -103,12 +103,3 @@ export function computeDailyKpis(ads: AdRow[], orders: OrderRow[]) {
   }
   return out;
 }
-
-export function movingAverage(values: (number|null|undefined)[], window: number): number | null {
-  const arr = values.filter((v): v is number => typeof v === 'number' && !isNaN(v));
-  if (arr.length < window) return null;
-  const slice = arr.slice(-window);
-  if (slice.length < window) return null;
-  const sum = slice.reduce((a,b)=>a+b,0);
-  return sum / slice.length;
-}

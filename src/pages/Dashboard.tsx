@@ -10,64 +10,77 @@ import { generateAlerts } from '../lib/alerts'
 import { supabase } from '../lib/supabaseClient'
 
 export default function Dashboard() {
-  const [ads, setAds] = React.useState<any[]>([])
-  const [orders, setOrders] = React.useState<any[]>([])
-  const [daily, setDaily] = React.useState<any[]>([])
-  const [alerts, setAlerts] = React.useState<any[]>([])
+  const [ads, setAds] = React.useState<any[]>([]);
+  const [orders, setOrders] = React.useState<any[]>([]);
+  const [daily, setDaily] = React.useState<any[]>([]);
+  const [alerts, setAlerts] = React.useState<any[]>([]);
 
-  const onData = async ({ ads, orders }: any) => {
-    setAds(ads); setOrders(orders)
-    const daily = computeDailyKpis(ads, orders)
-    setDaily(daily)
-    setAlerts(generateAlerts(ads))
+  const onData = async ({ ads, orders }: { ads: any[]; orders: any[] }) => {
+    setAds(ads);
+    setOrders(orders);
+    const dailyData = computeDailyKpis(ads, orders);
+    setDaily(dailyData);
+    setAlerts(generateAlerts(ads));
 
     // Persist to Supabase if env keys are present
     if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
       if (ads.length) {
-        await supabase.from('daily_ads').upsert(ads.map(a => ({
-          report_date: a.report_date,
-          campaign_name: a.campaign_name,
-          adset_name: a.adset_name,
-          ad_name: a.ad_name,
-          level: a.level,
-          reach: a.reach,
-          impressions: a.impressions,
-          frequency: a.frequency,
-          results: a.results,
-          result_type: a.result_type,
-          conversations_started: a.conversations_started,
-          unique_ctr: a.unique_ctr,
-          ctr_all: a.ctr_all,
-          purchases: a.purchases,
-          spend_sgd: a.spend_sgd,
-          spend_bdt: a.spend_bdt,
-          cpm_bdt: a.cpm_bdt,
-          cpc_bdt: a.cpc_bdt
-        })), { onConflict: 'report_date,level,campaign_name,adset_name,ad_name' }).select())
+        await supabase
+          .from('daily_ads')
+          .upsert(
+            ads.map((a) => ({
+              report_date: a.report_date,
+              campaign_name: a.campaign_name,
+              adset_name: a.adset_name,
+              ad_name: a.ad_name,
+              level: a.level,
+              reach: a.reach,
+              impressions: a.impressions,
+              frequency: a.frequency,
+              results: a.results,
+              result_type: a.result_type,
+              conversations_started: a.conversations_started,
+              unique_ctr: a.unique_ctr,
+              ctr_all: a.ctr_all,
+              purchases: a.purchases,
+              spend_sgd: a.spend_sgd,
+              spend_bdt: a.spend_bdt,
+              cpm_bdt: a.cpm_bdt,
+              cpc_bdt: a.cpc_bdt
+            })),
+            { onConflict: 'report_date,level,campaign_name,adset_name,ad_name' }
+          )
+          .select();
       }
       if (orders.length) {
-        await supabase.from('daily_orders').upsert(orders.map(o => ({
-          order_date: o.order_date,
-          invoice_number: o.invoice_number,
-          order_status: o.order_status,
-          paid_amount: o.paid_amount,
-          due_amount: o.due_amount,
-          total_price: o.total_price,
-          delivery_area: o.delivery_area,
-          classification: o.classification
-        })), { onConflict: 'report_date,level,campaign_name,adset_name,ad_name' }).select())
+        await supabase
+          .from('daily_orders')
+          .upsert(
+            orders.map((o) => ({
+              order_date: o.order_date,
+              invoice_number: o.invoice_number,
+              order_status: o.order_status,
+              paid_amount: o.paid_amount,
+              due_amount: o.due_amount,
+              total_price: o.total_price,
+              delivery_area: o.delivery_area,
+              classification: o.classification
+            })),
+            { onConflict: 'order_date,invoice_number' }
+          )
+          .select();
       }
     }
-  }
+  };
 
   const alertDots = React.useMemo(() => {
-    const map: Record<string, string[]> = {}
+    const map: Record<string, string[]> = {};
     for (const a of alerts) {
-      map[a.date] = map[a.date] || []
-      map[a.date].push(a.title)
+      map[a.date] = map[a.date] || [];
+      map[a.date].push(a.title);
     }
-    return map
-  }, [alerts])
+    return map;
+  }, [alerts]);
 
   return (
     <div className="max-w-7xl mx-auto p-4 space-y-6">
@@ -78,7 +91,7 @@ export default function Dashboard() {
 
       <FileUploader onData={onData} />
 
-      {daily.length > 0 && (
+      {daily.length > 0 ? (
         <>
           <TopTiles data={daily} />
           <div className="grid gap-4 md:grid-cols-2">
@@ -90,11 +103,9 @@ export default function Dashboard() {
           <TabbedBreakdown ads={ads} />
           <AlertsPanel alerts={alerts} />
         </>
-      )}
-
-      {daily.length === 0 && (
+      ) : (
         <div className="text-sm text-gray-500">Upload today's two files to see KPIs, charts, and alerts.</div>
       )}
     </div>
-  )
+  );
 }
