@@ -21,7 +21,7 @@ export default function Dashboard() {
     setDaily(daily)
     setAlerts(generateAlerts(ads))
 
-    // Persist to Supabase
+    // Persist to Supabase if env keys are present
     if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
       if (ads.length) {
         await supabase.from('daily_ads').insert(ads.map(a => ({
@@ -37,6 +37,7 @@ export default function Dashboard() {
           result_type: a.result_type,
           conversations_started: a.conversations_started,
           unique_ctr: a.unique_ctr,
+          ctr_all: a.ctr_all,
           purchases: a.purchases,
           spend_sgd: a.spend_sgd,
           spend_bdt: a.spend_bdt,
@@ -86,9 +87,7 @@ export default function Dashboard() {
             <TimeSeriesChart data={daily} metric="conv_to_order_rate" title="Conversation → Order %" alerts={alertDots} />
             <TimeSeriesChart data={daily} metric="blended_cpa_bdt" title="Blended CPA (BDT)" alerts={alertDots} />
           </div>
-
           <TabbedBreakdown ads={ads} />
-
           <AlertsPanel alerts={alerts} />
         </>
       )}

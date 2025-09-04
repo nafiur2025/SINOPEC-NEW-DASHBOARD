@@ -1,5 +1,4 @@
 
--- Tables
 create table if not exists daily_ads (
   id bigserial primary key,
   report_date date not null,
@@ -14,6 +13,7 @@ create table if not exists daily_ads (
   result_type text,
   conversations_started numeric,
   unique_ctr numeric,
+  ctr_all numeric,
   purchases numeric,
   spend_sgd numeric,
   spend_bdt numeric,
@@ -21,7 +21,6 @@ create table if not exists daily_ads (
   cpc_bdt numeric,
   created_at timestamp with time zone default now()
 );
-
 create index if not exists idx_daily_ads_report_date on daily_ads(report_date);
 create index if not exists idx_daily_ads_level on daily_ads(level);
 
@@ -34,13 +33,11 @@ create table if not exists daily_orders (
   due_amount numeric,
   total_price numeric,
   delivery_area text,
-  classification text, -- 'PCMO' or 'MCO'
+  classification text,
   created_at timestamp with time zone default now()
 );
-
 create index if not exists idx_daily_orders_order_date on daily_orders(order_date);
 
--- Simple view for daily rollups
 create or replace view v_daily_rollup as
 select
   d::date as day,

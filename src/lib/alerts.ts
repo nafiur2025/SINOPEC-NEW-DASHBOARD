@@ -5,7 +5,7 @@ type Alert = {
   date: string;
   level: 'info'|'warn'|'danger';
   scope: 'ad'|'adset'|'campaign';
-  key: string; // unique id
+  key: string;
   title: string;
   message: string;
 };
@@ -15,7 +15,6 @@ function pctChange(newVal: number, oldVal: number) {
   return (newVal - oldVal) / oldVal;
 }
 
-// Group by (date, ad_name) to compute per-ad metrics by day
 function groupByAdDaily(rows: AdRow[]) {
   const map = new Map<string, {date:string, name:string, ctr?:number, freq?:number, cpc?:number, cpm?:number, costPerConv?:number, convs?:number, spend?:number}>();
   for (const r of rows) {
@@ -24,8 +23,9 @@ function groupByAdDaily(rows: AdRow[]) {
     const key = `${date}|${name}`;
     const obj = map.get(key) || { date, name };
     const impressions = r.impressions || 0;
-    const clicks = (r.unique_ctr || 0) * impressions / 100;
-    obj.ctr = r.unique_ctr ?? obj.ctr;
+    const ctrPref = (r.ctr_all != null ? r.ctr_all : (r.unique_ctr || 0));
+    const clicks = (ctrPref || 0) * impressions / 100;
+    obj.ctr = (r.ctr_all != null ? r.ctr_all : r.unique_ctr) ?? obj.ctr;
     obj.freq = r.frequency ?? obj.freq;
     obj.spend = (obj.spend || 0) + (r.spend_bdt || 0);
     obj.convs = (obj.convs || 0) + (r.conversations_started || 0);
@@ -34,7 +34,6 @@ function groupByAdDaily(rows: AdRow[]) {
     obj.costPerConv = (obj.convs||0) > 0 ? (obj.spend||0) / (obj.convs||0) : obj.costPerConv;
     map.set(key, obj);
   }
-  // group by ad name
   const byAd = new Map<string, any[]>();
   for (const row of map.values()) {
     const arr = byAd.get(row.name) || [];
@@ -49,18 +48,13 @@ export function generateAlerts(adRows: AdRow[]) {
   const alerts: Alert[] = [];
   const byAd = groupByAdDaily(adRows);
 
-  const today = new Date();
-  const format = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-
   for (const [ad, series] of byAd.entries()) {
     const dates = series.map(s=>s.date);
     const ctrSeries = series.map(s=>s.ctr ?? null);
     const freqSeries = series.map(s=>s.freq ?? null);
-    const cpcSeries = series.map(s=>s.cpc ?? null);
     const cpmSeries = series.map(s=>s.cpm ?? null);
     const costPerConvSeries = series.map(s=>s.costPerConv ?? null);
 
-    // Helper: avg over last N and previous N
     const avgN = (arr:(number|null)[], n:number) => {
       const cleaned = arr.filter((v): v is number => typeof v === 'number' && !isNaN(v));
       if (cleaned.length < n*2) return { curr:null, prev:null };
@@ -69,7 +63,7 @@ export function generateAlerts(adRows: AdRow[]) {
       return { curr, prev };
     };
 
-    // 1) CTR drop >=25% over 3 days AND Frequency > 2.5 -> rotate creative
+    // CTR drop ≥25% over 3 days AND Frequency > 2.5 -> rotate creative
     {
       const { curr, prev } = avgN(ctrSeries, 3);
       const lastFreq = freqSeries.filter((v): v is number => typeof v === 'number').slice(-1)[0];
@@ -88,7 +82,7 @@ export function generateAlerts(adRows: AdRow[]) {
       }
     }
 
-    // 2) Cost per conversation up >=30% for 3 days
+    // Cost per conversation up ≥30% for 3 days
     {
       const { curr, prev } = avgN(costPerConvSeries, 3);
       if (curr != null && prev != null) {
@@ -106,7 +100,7 @@ export function generateAlerts(adRows: AdRow[]) {
       }
     }
 
-    // 3) CPM up >=25% but CTR steady ([-5%, +5%]) -> ride it out
+    // CPM up ≥25% but CTR steady (±5%)
     {
       const { curr: cpmCurr, prev: cpmPrev } = avgN(cpmSeries, 3);
       const { curr: ctrCurr, prev: ctrPrev } = avgN(ctrSeries, 3);

@@ -1,16 +1,15 @@
 
 import React from 'react'
 
-type Props = {
-  ads: any[]
-}
+type Props = { ads: any[] }
 
 const metrics = [
   { key: 'cpc_bdt', label: 'Cost per Click (BDT)' },
   { key: 'cpm_bdt', label: 'CPM (BDT)' },
   { key: 'conversations_started', label: 'Conversations Started' },
   { key: 'frequency', label: 'Frequency' },
-  { key: 'unique_ctr', label: 'Unique CTR %' }
+  { key: 'unique_ctr', label: 'Unique CTR %' },
+  { key: 'ctr_all', label: 'CTR (All) %' }
 ] as const
 
 export default function TabbedBreakdown({ ads }: Props) {
@@ -33,11 +32,7 @@ export default function TabbedBreakdown({ ads }: Props) {
       <div className="card-body space-y-4">
         <div className="flex flex-wrap gap-2">
           {(['campaign','adset','ad'] as const).map(l => (
-            <button
-              key={l}
-              className={"px-3 py-1 rounded-full border text-sm " + (level===l ? "bg-black text-white" : "")}
-              onClick={()=>setLevel(l)}
-            >
+            <button key={l} className={"px-3 py-1 rounded-full border text-sm " + (level===l ? "bg-black text-white" : "")} onClick={()=>setLevel(l)}>
               {l}
             </button>
           ))}

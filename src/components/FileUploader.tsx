@@ -17,10 +17,8 @@ function readFileAsync(file: File): Promise<ArrayBuffer | string> {
 }
 
 function normalizeAdsFromSheet(sheetData: any[][]): AdRow[] {
-  // Expect header row somewhere; find the row that contains "Campaign name"
   const headerRowIdx = sheetData.findIndex(r => r && r.includes('Campaign name'))
   if (headerRowIdx === -1) return []
-
   const header = sheetData[headerRowIdx]
   const rows = sheetData.slice(headerRowIdx + 1)
 
@@ -38,6 +36,7 @@ function normalizeAdsFromSheet(sheetData: any[][]): AdRow[] {
   const idxSpend = col('Amount spent (SGD)')
   const idxMsgConv = col('Messaging conversations started')
   const idxUniqueCtr = col('Unique CTR (link click-through rate)')
+  const idxCtrAll = col('CTR (All)') >= 0 ? col('CTR (All)') : col('Ctr (All)')
   const idxStart = col('Reporting starts')
   const idxEnd = col('Reporting ends')
 
@@ -47,7 +46,6 @@ function normalizeAdsFromSheet(sheetData: any[][]): AdRow[] {
     const level = (r[idxLevel]||'').toString().toLowerCase() as any
     const dateStr = parseLocalDate(r[idxStart] || r[idxEnd])
     if (!dateStr) continue
-
     const impressions = Number(r[idxImp] || 0)
     const spendSgd = Number(r[idxSpend] || 0)
     const spendBdt = sgdToBdt(spendSgd)
@@ -65,7 +63,8 @@ function normalizeAdsFromSheet(sheetData: any[][]): AdRow[] {
       results: Number(r[idxResults] || 0),
       result_type: String(r[idxResultType] || ''),
       conversations_started: Number(r[idxMsgConv] || (String(r[idxResultType]||'').includes('Messaging conversations') ? r[idxResults] : 0) || 0),
-      unique_ctr: r[idxUniqueCtr] != null ? Number(String(r[idxUniqueCtr]).toString().replace('%','')) : undefined,
+      unique_ctr: idxUniqueCtr>=0 && r[idxUniqueCtr]!=null ? Number(String(r[idxUniqueCtr]).toString().replace('%','')) : undefined,
+      ctr_all: (idxCtrAll>=0 && r[idxCtrAll]!=null) ? Number(String(r[idxCtrAll]).toString().replace('%','')) : undefined,
       purchases: undefined,
       spend_sgd: spendSgd,
       spend_bdt: spendBdt,
@@ -97,6 +96,7 @@ function normalizeAds(file: File, data: string | ArrayBuffer): AdRow[] {
       const spendBdt = sgdToBdt(spendSgd)
       const cpm = impressions > 0 ? (spendBdt / impressions) * 1000 : null
       const convs = Number(r['Messaging conversations started'] || 0) || (String(r['Result type']||'').includes('Messaging conversations') ? Number(r['Results']||0) : 0)
+      const ctrAll = r['CTR (All)'] != null ? Number(String(r['CTR (All)']).replace('%','')) : undefined
       const uniqueCtr = r['Unique CTR (link click-through rate)'] ? Number(String(r['Unique CTR (link click-through rate)']).replace('%','')) : undefined
 
       out.push({
@@ -112,6 +112,7 @@ function normalizeAds(file: File, data: string | ArrayBuffer): AdRow[] {
         result_type: r['Result type'],
         conversations_started: convs,
         unique_ctr: uniqueCtr,
+        ctr_all: ctrAll,
         purchases: Number(r['Purchases'] || 0),
         spend_sgd: spendSgd,
         spend_bdt: spendBdt,
@@ -130,7 +131,6 @@ function normalizeAds(file: File, data: string | ArrayBuffer): AdRow[] {
 }
 
 function normalizeOrders(file: File, data: string | ArrayBuffer): OrderRow[] {
-  // We expect CSV here
   const text = typeof data === 'string' ? data : new TextDecoder('latin1').decode(data as ArrayBuffer)
   const parsed = Papa.parse(text, { header: true })
   const rows = parsed.data as any[]
@@ -153,16 +153,8 @@ function normalizeOrders(file: File, data: string | ArrayBuffer): OrderRow[] {
   return out
 }
 
-export type UploadResult = {
-  ads: AdRow[],
-  orders: OrderRow[]
-}
-
-type Props = {
-  onData: (res: UploadResult) => void
-}
-
-export default function FileUploader({ onData }: Props) {
+export type UploadResult = { ads: AdRow[], orders: OrderRow[] }
+export default function FileUploader({ onData }:{ onData: (res: UploadResult) => void }) {
   const [adsFile, setAdsFile] = React.useState<File | null>(null)
   const [ordersFile, setOrdersFile] = React.useState<File | null>(null)
   const [busy, setBusy] = React.useState(false)
@@ -175,9 +167,7 @@ export default function FileUploader({ onData }: Props) {
       const ads = normalizeAds(adsFile, adsBuf)
       const orders = normalizeOrders(ordersFile, ordBuf)
       onData({ ads, orders })
-    } finally {
-      setBusy(false)
-    }
+    } finally { setBusy(false) }
   }
 
   return (
@@ -195,16 +185,10 @@ export default function FileUploader({ onData }: Props) {
           {ordersFile && <div className="text-xs text-gray-500 mt-1">{ordersFile.name}</div>}
         </label>
       </div>
-      <button
-        className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50"
-        disabled={!adsFile || !ordersFile || busy}
-        onClick={parseAndEmit}
-      >
+      <button className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50" disabled={!adsFile || !ordersFile || busy} onClick={parseAndEmit}>
         {busy ? 'Processing…' : 'Process files'}
       </button>
-      <p className="text-xs text-gray-500">
-        We parse dates using your local timezone (no UTC conversion) and support dd/mm/yyyy, dd.mm.yyyy, dd-MMM-yy, yyyy-mm-dd, and Excel serials.
-      </p>
+      <p className="text-xs text-gray-500">Local date parsing (no UTC). Supports dd/mm/yyyy, dd.mm.yyyy, dd-MMM-yy, yyyy-mm-dd, Excel serial.</p>
     </div>
   )
 }

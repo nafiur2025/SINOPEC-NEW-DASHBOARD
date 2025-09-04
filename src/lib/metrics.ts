@@ -12,6 +12,7 @@ export type AdRow = {
   result_type?: string;
   conversations_started?: number;
   unique_ctr?: number;
+  ctr_all?: number;
   purchases?: number;
   spend_sgd?: number;
   spend_bdt?: number;
@@ -60,7 +61,6 @@ export function computeDailyKpis(ads: AdRow[], orders: OrderRow[]) {
         blended_cpa_bdt: null as number|null,
         roas: null as number|null,
         conv_to_order_rate: null as number|null,
-        // For charting
         cpm_bdt: null as number|null,
         frequency: null as number|null
       };
@@ -73,7 +73,6 @@ export function computeDailyKpis(ads: AdRow[], orders: OrderRow[]) {
     addDay(d);
     byDay[d].ad_spend_bdt += a.spend_bdt || 0;
     byDay[d].conversations += a.conversations_started || 0;
-    // cpm/frequency simple average (could be weighted)
     if (a.cpm_bdt) {
       byDay[d].cpm_bdt = (byDay[d].cpm_bdt == null) ? a.cpm_bdt : (byDay[d].cpm_bdt + a.cpm_bdt)/2;
     }

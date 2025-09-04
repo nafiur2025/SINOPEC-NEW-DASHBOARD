@@ -2,9 +2,5 @@
 [build]
   command = "npm run build"
   publish = "dist"
-
-[[plugins]]
-  package = "@netlify/plugin-lighthouse"
-
 [functions]
   node_bundler = "esbuild"

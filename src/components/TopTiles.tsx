@@ -3,10 +3,6 @@ import React from 'react'
 import { fmtBDT } from '../lib/currency'
 import clsx from 'clsx'
 
-type KPI = {
-  label: string, value: number | null, fmt?: (n:number|null)=>string, help?: string, badge?: {text:string, tone:'green'|'yellow'|'red'}
-}
-
 function fmtNum(n: number | null) {
   if (n == null) return '—'
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(n)
@@ -14,15 +10,15 @@ function fmtNum(n: number | null) {
 
 export default function TopTiles({ data }:{ data: any[] }) {
   const last = data[data.length-1] || {}
-  const kpis: KPI[] = [
-    { label: 'Revenue', value: last.revenue_bdt ?? null, fmt: (n)=>fmtBDT(n||0) },
+  const kpis = [
+    { label: 'Revenue', value: last.revenue_bdt ?? null, fmt: (n:number|null)=>fmtBDT(n||0) },
     { label: 'Orders', value: last.orders ?? null },
-    { label: 'Ad Spend', value: last.ad_spend_bdt ?? null, fmt: (n)=>fmtBDT(n||0) },
-    { label: 'Blended CPA', value: last.blended_cpa_bdt ?? null, fmt: (n)=>fmtBDT(n||0), badge: badgeCPA(last.blended_cpa_bdt) },
+    { label: 'Ad Spend', value: last.ad_spend_bdt ?? null, fmt: (n:number|null)=>fmtBDT(n||0) },
+    { label: 'Blended CPA', value: last.blended_cpa_bdt ?? null, fmt: (n:number|null)=>fmtBDT(n||0), badge: badgeCPA(last.blended_cpa_bdt) },
     { label: 'ROAS', value: last.roas ?? null },
     { label: 'Conversations', value: last.conversations ?? null },
     { label: 'Conv → Order %', value: last.conv_to_order_rate ?? null }
-  ]
+  ] as const
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -30,7 +26,7 @@ export default function TopTiles({ data }:{ data: any[] }) {
         <div key={k.label} className="tile">
           <div className="text-sm text-gray-500">{k.label}</div>
           <div className="mt-1 text-2xl font-semibold">
-            {k.fmt ? k.fmt(k.value) : fmtNum(k.value)}
+            {k.fmt ? k.fmt(k.value as any) : fmtNum(k.value as any)}
           </div>
           {k.badge && (
             <div className={clsx('inline-flex items-center mt-2 badge', {
