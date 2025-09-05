@@ -2,6 +2,15 @@
 import React from 'react'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
+
+// Robust numeric parser (handles 'S$54.58', 'SGD 54.58', '1,234.56')
+const num = (v:any): number => {
+  if (typeof v === 'number') return v;
+  if (v == null) return 0;
+  const s = String(v).replace(/[^0-9.\-]/g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
 import { parseLocalDate } from '../lib/date'
 import { sgdToBdt } from '../lib/currency'
 import type { AdRow, OrderRow } from '../lib/metrics'
@@ -23,22 +32,26 @@ function normalizeAdsFromSheet(sheetData: any[][]): AdRow[] {
   const rows = sheetData.slice(headerRowIdx + 1)
 
   const col = (name: string) => header.findIndex((h: any) => (h||'').toString().trim().toLowerCase() === name.toLowerCase())
+    const findCol = (...names: string[]) => {
+      for (const n of names) { const i = col(n); if (i >= 0) return i }
+      return -1
+    }
 
-  const idxCampaign = col('Campaign name')
-  const idxAdset = col('Ad Set Name') >= 0 ? col('Ad Set Name') : col('Ad set name')
-  const idxAd = col('Ad name')
-  const idxLevel = col('Delivery level')
-  const idxReach = col('Reach')
-  const idxImp = col('Impressions')
-  const idxFreq = col('Frequency')
-  const idxResultType = col('Result type')
-  const idxResults = col('Results')
-  const idxSpend = col('Amount spent (SGD)')
-  const idxMsgConv = col('Messaging conversations started')
-  const idxUniqueCtr = col('Unique CTR (link click-through rate)')
-  const idxCtrAll = col('CTR (All)') >= 0 ? col('CTR (All)') : col('Ctr (All)')
-  const idxStart = col('Reporting starts')
-  const idxEnd = col('Reporting ends')
+    const idxCampaign = col('Campaign name')
+    const idxAdset = col('Ad Set Name') >= 0 ? col('Ad Set Name') : col('Ad set name')
+    const idxAd = col('Ad name')
+    const idxLevel = col('Delivery level')
+    const idxReach = col('Reach')
+    const idxImp = col('Impressions')
+    const idxFreq = col('Frequency')
+    const idxResultType = col('Result type')
+    const idxResults = col('Results')
+    const idxSpend = findCol('Amount spent (SGD)', 'Amount Spent (SGD)', 'Spend (SGD)')
+    const idxMsgConv = col('Messaging conversations started')
+    const idxUniqueCtr = col('Unique CTR (link click-through rate)')
+    const idxCtrAll = col('CTR (All)') >= 0 ? col('CTR (All)') : col('Ctr (All)')
+    const idxStart = col('Reporting starts')
+    const idxEnd = col('Reporting ends')
 
   const out: AdRow[] = []
   for (const r of rows) {
@@ -46,8 +59,8 @@ function normalizeAdsFromSheet(sheetData: any[][]): AdRow[] {
     const level = (r[idxLevel]||'').toString().toLowerCase() as any
     const dateStr = parseLocalDate(r[idxStart] || r[idxEnd])
     if (!dateStr) continue
-    const impressions = Number(r[idxImp] || 0)
-    const spendSgd = Number(r[idxSpend] || 0)
+    const impressions = num(r[idxImp])
+    const spendSgd = num(r[idxSpend])
     const spendBdt = sgdToBdt(spendSgd)
     const cpm = impressions > 0 ? (spendBdt / impressions) * 1000 : null
 
@@ -57,12 +70,12 @@ function normalizeAdsFromSheet(sheetData: any[][]): AdRow[] {
       adset_name: r[idxAdset] || '',
       ad_name: r[idxAd] || '',
       level: (level === 'campaign' || level === 'adset' || level === 'ad') ? level : 'campaign',
-      reach: Number(r[idxReach] || 0),
+      reach: num(r[idxReach]),
       impressions,
-      frequency: Number(r[idxFreq] || 0),
-      results: Number(r[idxResults] || 0),
+      frequency: num(r[idxFreq]),
+      results: num(r[idxResults]),
       result_type: String(r[idxResultType] || ''),
-      conversations_started: Number(r[idxMsgConv] || (String(r[idxResultType]||'').includes('Messaging conversations') ? r[idxResults] : 0) || 0),
+      conversations_started: num(r[idxMsgConv] || (String(r[idxResultType]||'').includes('Messaging conversations') ? r[idxResults] : 0)),
       unique_ctr: idxUniqueCtr>=0 && r[idxUniqueCtr]!=null ? Number(String(r[idxUniqueCtr]).toString().replace('%','')) : undefined,
       ctr_all: (idxCtrAll>=0 && r[idxCtrAll]!=null) ? Number(String(r[idxCtrAll]).toString().replace('%','')) : undefined,
       purchases: undefined,
@@ -91,11 +104,11 @@ function normalizeAds(file: File, data: string | ArrayBuffer): AdRow[] {
       if (!r) continue
       const dateStr = parseLocalDate(r[rStart] || r[rEnd])
       if (!dateStr) continue
-      const impressions = Number(r['Impressions'] || r['impressions'] || 0)
-      const spendSgd = Number(r['Amount spent (SGD)'] || r['Amount Spent (SGD)'] || r['Spend (SGD)'] || 0)
+      const impressions = num(r['Impressions'] || r['impressions'])
+      const spendSgd = num(r['Amount spent (SGD)'] || r['Amount Spent (SGD)'] || r['Spend (SGD)'])
       const spendBdt = sgdToBdt(spendSgd)
       const cpm = impressions > 0 ? (spendBdt / impressions) * 1000 : null
-      const convs = Number(r['Messaging conversations started'] || 0) || (String(r['Result type']||'').includes('Messaging conversations') ? Number(r['Results']||0) : 0)
+      const convs = num(r['Messaging conversations started']) || (String(r['Result type']||'').includes('Messaging conversations') ? Number(r['Results']||0) : 0)
       const ctrAll = r['CTR (All)'] != null ? Number(String(r['CTR (All)']).replace('%','')) : undefined
       const uniqueCtr = r['Unique CTR (link click-through rate)'] ? Number(String(r['Unique CTR (link click-through rate)']).replace('%','')) : undefined
 
@@ -105,10 +118,10 @@ function normalizeAds(file: File, data: string | ArrayBuffer): AdRow[] {
         adset_name: r['Ad Set Name'] || r['Ad set name'],
         ad_name: r['Ad name'],
         level: (r['Delivery level'] || '').toLowerCase(),
-        reach: Number(r['Reach'] || 0),
+        reach: num(r['Reach']),
         impressions,
-        frequency: Number(r['Frequency'] || 0),
-        results: Number(r['Results'] || 0),
+        frequency: num(r['Frequency']),
+        results: num(r['Results']),
         result_type: r['Result type'],
         conversations_started: convs,
         unique_ctr: uniqueCtr,
