@@ -4,25 +4,36 @@ import FileUploader from '../components/FileUploader'
 import TopTiles from '../components/TopTiles'
 import TimeSeriesChart from '../components/TimeSeriesChart'
 import TabbedBreakdown from '../components/TabbedBreakdown'
-import { computeDailyKpis } from '../lib/metrics'
+import { computeDailyKpis, AdRow, OrderRow } from '../lib/metrics'
 import AlertsPanel from '../components/AlertsPanel'
 import { generateAlerts } from '../lib/alerts'
 import { supabase } from '../lib/supabaseClient'
 
 export default function Dashboard() {
-  const [ads, setAds] = React.useState<any[]>([]);
-  const [orders, setOrders] = React.useState<any[]>([]);
+  const [ads, setAds] = React.useState<AdRow[]>([]);
+  const [orders, setOrders] = React.useState<OrderRow[]>([]);
   const [daily, setDaily] = React.useState<any[]>([]);
   const [alerts, setAlerts] = React.useState<any[]>([]);
 
-  const onData = async ({ ads, orders }: { ads: any[]; orders: any[] }) => {
-    setAds(ads);
-    setOrders(orders);
-    const dailyData = computeDailyKpis(ads, orders);
-    setDaily(dailyData);
-    setAlerts(generateAlerts(ads));
+  const fetchHistory = React.useCallback(async () => {
+    if (!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)) return;
+    const since = new Date(); since.setDate(since.getDate()-180);
+    const iso = since.toISOString().slice(0,10);
+    const [adsRes, ordersRes] = await Promise.all([
+      supabase.from('daily_ads').select('*').gte('report_date', iso).order('report_date', { ascending: true }),
+      supabase.from('daily_orders').select('*').gte('order_date', iso).order('order_date', { ascending: true })
+    ]);
+    const adsRows = (adsRes.data || []) as AdRow[];
+    const orderRows = (ordersRes.data || []) as OrderRow[];
+    setAds(adsRows);
+    setOrders(orderRows);
+    setDaily(computeDailyKpis(adsRows, orderRows));
+    setAlerts(generateAlerts(adsRows));
+  }, []);
 
-    // Persist to Supabase if env keys are present
+  React.useEffect(() => { fetchHistory(); }, [fetchHistory]);
+
+  const onData = async ({ ads, orders }: { ads: AdRow[]; orders: OrderRow[] }) => {
     if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
       if (ads.length) {
         await supabase
@@ -70,6 +81,12 @@ export default function Dashboard() {
           )
           .select();
       }
+      await fetchHistory();
+    } else {
+      setAds(ads);
+      setOrders(orders);
+      setDaily(computeDailyKpis(ads, orders));
+      setAlerts(generateAlerts(ads));
     }
   };
 
@@ -97,14 +114,13 @@ export default function Dashboard() {
           <div className="grid gap-4 md:grid-cols-2">
             <TimeSeriesChart data={daily} metric="revenue_bdt" title="Revenue (BDT)" alerts={alertDots} />
             <TimeSeriesChart data={daily} metric="roas" title="ROAS (MER)" alerts={alertDots} />
-            <TimeSeriesChart data={daily} metric="conv_to_order_rate" title="Conversation → Order %" alerts={alertDots} />
             <TimeSeriesChart data={daily} metric="blended_cpa_bdt" title="Blended CPA (BDT)" alerts={alertDots} />
           </div>
           <TabbedBreakdown ads={ads} />
           <AlertsPanel alerts={alerts} />
         </>
       ) : (
-        <div className="text-sm text-gray-500">Upload today's two files to see KPIs, charts, and alerts.</div>
+        <div className="text-sm text-gray-500">Upload your files or connect to Supabase to see history.</div>
       )}
     </div>
   );

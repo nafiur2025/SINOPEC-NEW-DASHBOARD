@@ -15,13 +15,11 @@ export default function TopTiles({ data }:{ data: any[] }) {
     { label: 'Orders', value: last.orders ?? null },
     { label: 'Ad Spend', value: last.ad_spend_bdt ?? null, fmt: (n:number|null)=>fmtBDT(n||0) },
     { label: 'Blended CPA', value: last.blended_cpa_bdt ?? null, fmt: (n:number|null)=>fmtBDT(n||0), badge: badgeCPA(last.blended_cpa_bdt) },
-    { label: 'ROAS', value: last.roas ?? null },
-    { label: 'Conversations', value: last.conversations ?? null },
-    { label: 'Conv → Order %', value: last.conv_to_order_rate ?? null }
+    { label: 'ROAS', value: last.roas ?? null }
   ] as const
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {kpis.map((k)=> (
         <div key={k.label} className="tile">
           <div className="text-sm text-gray-500">{k.label}</div>
